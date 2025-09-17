@@ -1,0 +1,9 @@
+{
+  "jobs": [
+    {
+      "command": "0 7 * * * /scripts/sync_scaleway.sh",
+      "size": "S",
+      "description": "Daily database restore from Scaleway S3 at 7 AM UTC"
+    }
+  ]
+}
