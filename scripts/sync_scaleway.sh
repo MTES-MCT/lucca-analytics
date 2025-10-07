@@ -157,9 +157,26 @@ if [[ $DATABASE_URL =~ mysql://([^:]+):([^@]+)@([^:]+):([0-9]+)/([^?]+) ]]; then
     DUMP_SIZE=$(wc -l < "$CLEANED_DUMP_FILE")
     echo "Cleaned dump has $DUMP_SIZE lines"
 
-    echo "Loading cleaned MySQL dump into database..."
-    # Use --force to continue on non-fatal errors and set connection timeout
-    if mysql --force --connect-timeout=30 --max_allowed_packet=1073741824 -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < "$CLEANED_DUMP_FILE" 2>/dev/null; then
+    echo "Cleaning existing database..."
+    # Drop all existing tables before restoration
+    mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" <<'EOSQL'
+        SET FOREIGN_KEY_CHECKS = 0;
+        SET @tables = NULL;
+        SELECT GROUP_CONCAT(CONCAT('DROP TABLE IF EXISTS \`', table_schema, '\`.\`', table_name, '\`')) INTO @tables
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE();
+
+        SET @tables = IFNULL(@tables, 'SELECT 1');
+        PREPARE stmt FROM @tables;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SET FOREIGN_KEY_CHECKS = 1;
+EOSQL
+    echo "Existing database cleaned"
+
+    echo "Loading cleaned MySQL dump into database...: $CLEANED_DUMP_FILE"
+
+    if mysql --connect-timeout=30 --max_allowed_packet=1073741824 -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < "$CLEANED_DUMP_FILE" 2>/dev/null; then
         echo "✓ Database restoration completed successfully"
     else
         echo "Error: Database restoration failed"
