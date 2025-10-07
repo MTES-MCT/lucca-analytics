@@ -18,34 +18,15 @@ BACKUP_PATTERN="stats-backup-file-${TODAY_DATE}"
 echo "Starting Scaleway S3 to MySQL sync..."
 echo "Looking for backup files matching: ${BACKUP_PATTERN}*.tar.gz"
 
-# Check and install mysql client if not present
+# Verify required commands are available
+if ! command -v aws >/dev/null 2>&1; then
+    echo "Error: AWS CLI not found. Please ensure awscli is installed (via Aptfile on Scalingo)."
+    exit 1
+fi
+
 if ! command -v mysql >/dev/null 2>&1; then
-    echo "MySQL client not found. Installing..."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS - use Homebrew
-        if command -v brew >/dev/null 2>&1; then
-            brew install mysql-client
-            # Add mysql client to PATH for current session
-            export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
-        else
-            echo "Error: Homebrew not found. Please install MySQL client manually."
-            exit 1
-        fi
-    elif [[ "$OSTYPE" == "linux-gnu"* ]] || [ -f /etc/debian_version ]; then
-        # Linux - use apt (for Scalingo/Ubuntu/Debian)
-        if command -v apt-get >/dev/null 2>&1; then
-            apt-get update && apt-get install -y mysql-client
-        elif command -v yum >/dev/null 2>&1; then
-            yum install -y mysql
-        else
-            echo "Error: No package manager found. Please install MySQL client manually."
-            exit 1
-        fi
-    else
-        echo "Error: Unsupported OS. Please install MySQL client manually."
-        exit 1
-    fi
-    echo "MySQL client installed successfully."
+    echo "Error: MySQL client not found. Please ensure mysql-client is installed (via Aptfile on Scalingo)."
+    exit 1
 fi
 
 # Check required environment variables
