@@ -21,7 +21,7 @@ echo "Starting Scaleway S3 to MySQL sync..."
 APTFILE="${SCRIPT_DIR}/../Aptfile"
 if [ -f "$APTFILE" ]; then
     echo "Installing packages from Aptfile..."
-    while IFS= read -r package || [ -n "$package" ]; then
+    while IFS= read -r package || [ -n "$package" ]; do
         # Skip empty lines and comments
         [[ -z "$package" || "$package" =~ ^#.*$ ]] && continue
         echo "Installing $package..."
@@ -154,21 +154,20 @@ if [[ $DATABASE_URL =~ mysql://([^:]+):([^@]+)@([^:]+):([0-9]+)/([^?]+) ]]; then
     echo "Cleaned dump has $DUMP_SIZE lines"
 
     echo "Cleaning existing database..."
-    # Drop all existing tables before restoration
-    mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" <<'EOSQL'
-        SET FOREIGN_KEY_CHECKS = 0;
-        SET @tables = NULL;
-        SELECT GROUP_CONCAT(CONCAT('DROP TABLE IF EXISTS \`', table_schema, '\`.\`', table_name, '\`')) INTO @tables
-        FROM information_schema.tables
-        WHERE table_schema = DATABASE();
+    # Get list of all tables and drop them
+    TABLES=$(mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -N -e "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE();")
 
-        SET @tables = IFNULL(@tables, 'SELECT 1');
-        PREPARE stmt FROM @tables;
-        EXECUTE stmt;
-        DEALLOCATE PREPARE stmt;
-        SET FOREIGN_KEY_CHECKS = 1;
+    if [ -n "$TABLES" ]; then
+        echo "Dropping existing tables..."
+        mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" <<EOSQL
+SET FOREIGN_KEY_CHECKS = 0;
+$(echo "$TABLES" | while read -r table; do echo "DROP TABLE IF EXISTS \`$table\`;"; done)
+SET FOREIGN_KEY_CHECKS = 1;
 EOSQL
-    echo "Existing database cleaned"
+        echo "Existing database cleaned"
+    else
+        echo "No existing tables to drop"
+    fi
 
     echo "Loading cleaned MySQL dump into database...: $CLEANED_DUMP_FILE"
 
