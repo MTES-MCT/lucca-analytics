@@ -16,13 +16,28 @@ TODAY_DATE=$(date '+%Y-%m-%d')
 BACKUP_PATTERN="stats-backup-file-${TODAY_DATE}"
 
 echo "Starting Scaleway S3 to MySQL sync..."
+
+# Install packages from Aptfile if it exists
+APTFILE="${SCRIPT_DIR}/../Aptfile"
+if [ -f "$APTFILE" ]; then
+    echo "Installing packages from Aptfile..."
+    while IFS= read -r package || [ -n "$package" ]; then
+        # Skip empty lines and comments
+        [[ -z "$package" || "$package" =~ ^#.*$ ]] && continue
+        echo "Installing $package..."
+        apt-get update -qq && apt-get install -y -qq "$package" 2>/dev/null || echo "Warning: Failed to install $package"
+    done < "$APTFILE"
+    echo "Package installation complete"
+fi
+
 echo "Looking for backup files matching: ${BACKUP_PATTERN}*.tar.gz"
 
 # Verify required commands are available
 if ! command -v aws >/dev/null 2>&1; then
-    echo "Error: AWS CLI not found. Please ensure awscli is installed (via Aptfile on Scalingo)."
+    echo "Error: AWS CLI not found. Installation may have failed."
     exit 1
 fi
+echo "AWS CLI ready"
 
 if ! command -v mysql >/dev/null 2>&1; then
     echo "Error: MySQL client not found. Please ensure mysql-client is installed (via Aptfile on Scalingo)."
