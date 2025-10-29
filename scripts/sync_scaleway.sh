@@ -17,32 +17,38 @@ BACKUP_PATTERN="stats-backup-file-${TODAY_DATE}"
 
 echo "Starting Scaleway S3 to MySQL sync..."
 
-# Install packages from Aptfile if it exists
-APTFILE="${SCRIPT_DIR}/../Aptfile"
-if [ -f "$APTFILE" ]; then
-    echo "Installing packages from Aptfile..."
-    while IFS= read -r package || [ -n "$package" ]; do
-        # Skip empty lines and comments
-        [[ -z "$package" || "$package" =~ ^#.*$ ]] && continue
-        echo "Installing $package..."
-        apt-get update -qq && apt-get install -y -qq "$package" 2>/dev/null || echo "Warning: Failed to install $package"
-    done < "$APTFILE"
-    echo "Package installation complete"
-fi
-
-echo "Looking for backup files matching: ${BACKUP_PATTERN}*.tar.gz"
-
-# Verify required commands are available
+# Verify required commands are available and install if needed
+echo "Checking for AWS CLI..."
 if ! command -v aws >/dev/null 2>&1; then
-    echo "Error: AWS CLI not found. Installation may have failed."
-    exit 1
+    echo "AWS CLI not found, attempting to install via pip..."
+    # Try to install awscli via pip (Python package manager)
+    if command -v pip3 >/dev/null 2>&1; then
+        pip3 install --user awscli 2>/dev/null || pip3 install awscli 2>/dev/null
+        # Add pip user bin to PATH
+        export PATH="$HOME/.local/bin:$PATH"
+    elif command -v pip >/dev/null 2>&1; then
+        pip install --user awscli 2>/dev/null || pip install awscli 2>/dev/null
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    # Check again after installation attempt
+    if ! command -v aws >/dev/null 2>&1; then
+        echo "Error: AWS CLI is not available and could not be installed."
+        echo "Please ensure 'awscli' is in your Aptfile or Python is available with pip."
+        exit 1
+    fi
 fi
 echo "AWS CLI ready"
 
+echo "Checking for MySQL client..."
 if ! command -v mysql >/dev/null 2>&1; then
-    echo "Error: MySQL client not found. Please ensure mysql-client is installed (via Aptfile on Scalingo)."
+    echo "Error: MySQL client not found."
+    echo "Please ensure 'mysql-client' is in your Aptfile for Scalingo deployments."
     exit 1
 fi
+echo "MySQL client ready"
+
+echo "Looking for backup files matching: ${BACKUP_PATTERN}*.tar.gz"
 
 # Check required environment variables
 if [ -z "$SCALEWAY_ACCESS_KEY" ] || [ -z "$SCALEWAY_SECRET_KEY" ] || [ -z "$DATABASE_URL" ]; then
