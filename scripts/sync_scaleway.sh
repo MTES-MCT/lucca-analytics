@@ -41,8 +41,9 @@ log "Checking PATH: $PATH"
 
 if ! command -v aws >/dev/null 2>&1; then
     log_error "AWS CLI is not available"
-    log_error "AWS CLI should be installed via Aptfile (awscli package)"
-    log_error "If you just added it to Aptfile, you need to redeploy the app"
+    log_error "AWS CLI should be installed via the dedicated buildpack"
+    log_error "Verify that .buildpacks includes: https://github.com/studoverse/scalingo-buildpack-awscli.git"
+    log_error "If you just added the buildpack, you need to redeploy the app"
     log_error "Run: git push scalingo main"
     exit 1
 fi
@@ -52,7 +53,9 @@ log "AWS CLI ready: ${AWS_CLI_VERSION}"
 
 if ! command -v mysql >/dev/null 2>&1; then
     log_error "MySQL client not found"
-    log_error "Please ensure 'mysql-client' is in your Aptfile"
+    log_error "Verify that Aptfile includes: mysql-client"
+    log_error "If you just added it, you need to redeploy the app"
+    log_error "Run: git push scalingo main"
     exit 1
 fi
 
