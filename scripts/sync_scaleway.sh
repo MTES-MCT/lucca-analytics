@@ -51,14 +51,6 @@ fi
 AWS_CLI_VERSION=$(aws --version 2>&1)
 log "AWS CLI ready: ${AWS_CLI_VERSION}"
 
-if ! command -v mysql >/dev/null 2>&1; then
-    log_error "MySQL client not found"
-    log_error "Verify that Aptfile includes: mysql-client"
-    log_error "If you just added it, you need to redeploy the app"
-    log_error "Run: git push scalingo main"
-    exit 1
-fi
-
 MYSQL_VERSION=$(mysql --version 2>&1)
 log "MySQL client ready: ${MYSQL_VERSION}"
 
